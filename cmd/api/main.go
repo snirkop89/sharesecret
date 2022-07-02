@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/snirkop89/sharesecret/data"
+	"github.com/snirkop89/sharesecret/internal/data"
 )
 
 type application struct {

@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/snirkop89/sharesecret/data"
+	"github.com/snirkop89/sharesecret/internal/data"
 )
 
 func (app *application) healthcheckHandler(w http.ResponseWriter, r *http.Request) {
@@ -80,7 +80,9 @@ func (app *application) saveSecret(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id, err := app.store.Add(secret.PlainText)
+	hash := md5hash(secret.PlainText)
+
+	err = app.store.Add(hash, secret.PlainText)
 	if err != nil {
 		app.writeError(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -90,7 +92,7 @@ func (app *application) saveSecret(w http.ResponseWriter, r *http.Request) {
 	idResponse := struct {
 		ID string `json:"id"`
 	}{
-		ID: id,
+		ID: hash,
 	}
 
 	app.writeJSON(w, idResponse, http.StatusCreated)
