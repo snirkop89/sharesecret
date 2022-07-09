@@ -2,21 +2,18 @@ package main
 
 import (
 	"errors"
+	"flag"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
-	"strconv"
-	"sync"
 	"time"
 
+	"github.com/snirkop89/sharesecret/cmd/api/handlers"
 	"github.com/snirkop89/sharesecret/internal/data"
 )
 
-type application struct {
-	port  int
-	mu    *sync.Mutex
-	store data.Store
-}
+var port int
 
 func main() {
 	if err := run(); err != nil {
@@ -26,17 +23,11 @@ func main() {
 }
 
 func run() error {
+	flag.IntVar(&port, "port", 8080, "port to listen on")
+	flag.Parse()
+
 	if os.Getenv("DATA_FILE_PATH") == "" {
 		return errors.New("a file location is missing. specify it using DATA_FILE_PATH environment variable")
-	}
-
-	port := 8080
-	if os.Getenv("SECRETS_PORT") != "" {
-		p, err := strconv.Atoi("SECRETS_PORT")
-		if err != nil {
-			return fmt.Errorf("not an integer in SECRETS_PORT: %w", err)
-		}
-		port = p
 	}
 
 	store, err := data.NewFileStore(os.Getenv("DATA_FILE_PATH"))
@@ -45,19 +36,17 @@ func run() error {
 		os.Exit(1)
 	}
 
-	app := application{
-		port:  port,
-		mu:    &sync.Mutex{},
-		store: store,
-	}
+	logger := log.New(os.Stdout, "secret-app\t", log.LstdFlags)
 
-	mux := http.ServeMux{}
-	mux.HandleFunc("/", app.secretHandler)
-	mux.HandleFunc("/healthcheck", app.healthcheckHandler)
+	sh := handlers.NewSecretsHandler(logger, store)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/healthcheck", sh.Healthcheck)
+	mux.HandleFunc("/", sh.Secret)
 
 	srv := http.Server{
-		Addr:         fmt.Sprintf(":%d", app.port),
-		Handler:      &mux,
+		Addr:         fmt.Sprintf(":%d", port),
+		Handler:      mux,
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  10 * time.Second,
 		IdleTimeout:  10 * time.Second,
