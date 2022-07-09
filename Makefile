@@ -5,3 +5,7 @@ run:
 .PHONY: build
 build:
 	go build -o bin/secret-app ./cmd/api/
+
+.PHONY: test
+test:
+	go test -v ./...
